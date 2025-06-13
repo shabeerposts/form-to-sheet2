@@ -21,18 +21,12 @@ function getPrivateKey() {
   if (!privateKey) {
     throw new Error('GOOGLE_PRIVATE_KEY is not configured');
   }
-  
-  try {
-    // Log the first few characters of the key for debugging (safely)
-    console.log('Private key starts with:', privateKey.substring(0, 20) + '...');
-    
-    return privateKey
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\\n/g, '\n');      // Replace \n with actual line breaks
-  } catch (error) {
-    console.error('Error formatting private key:', error);
-    throw error;
-  }
+
+  // Remove any quotes and ensure proper line breaks
+  return privateKey
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
+    .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
 }
 
 export async function GET() {
@@ -43,7 +37,7 @@ export async function GET() {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: getPrivateKey(),
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
