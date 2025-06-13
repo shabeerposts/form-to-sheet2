@@ -8,12 +8,31 @@ const SHEET_NAME = 'Sheet2';
 function getPrivateKey() {
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
   if (!privateKey) {
+    console.error('GOOGLE_PRIVATE_KEY is missing');
     throw new Error('GOOGLE_PRIVATE_KEY is not configured');
   }
   
-  return privateKey
-    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-    .replace(/\\n/g, '\n');      // Replace \n with actual line breaks
+  try {
+    // Remove any quotes and ensure proper line breaks
+    const formattedKey = privateKey
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
+      .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
+    
+    // Log the format check (safely)
+    console.log('Private key format check:', {
+      hasBeginMarker: formattedKey.includes('-----BEGIN PRIVATE KEY-----'),
+      hasEndMarker: formattedKey.includes('-----END PRIVATE KEY-----'),
+      length: formattedKey.length,
+      firstChars: formattedKey.substring(0, 20),
+      lastChars: formattedKey.substring(formattedKey.length - 20)
+    });
+    
+    return formattedKey;
+  } catch (error) {
+    console.error('Error formatting private key:', error);
+    throw error;
+  }
 }
 
 // Add OPTIONS method to handle CORS preflight requests
@@ -90,6 +109,14 @@ export async function GET() {
 // Make sure POST method is properly exported
 export async function POST(request: Request) {
   try {
+    // Log environment variables (safely)
+    console.log('Environment check:', {
+      hasSheetId: !!SPREADSHEET_ID,
+      hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+      sheetName: SHEET_NAME
+    });
+
     // Validate environment variables
     if (!SPREADSHEET_ID) {
       throw new Error('GOOGLE_SHEET_ID is not configured');
@@ -99,56 +126,60 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    console.log('Received request body:', { ...body, jobNumber: body.jobNumber });
     
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: getPrivateKey(),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    try {
+      const auth = new google.auth.GoogleAuth({
+        credentials: {
+          client_email: process.env.GOOGLE_CLIENT_EMAIL,
+          private_key: getPrivateKey(),
+        },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
 
-    console.log('Auth object created successfully');
+      console.log('Auth object created successfully');
 
-    const sheets = google.sheets({ version: 'v4', auth });
-    const rowData = [
-      body.jobNumber,
-      body.customerName,
-      body.jobName,
-      body.jobLocation,
-      body.jobSource,
-      body.salesPerson,
-      body.jobSize,
-      body.quantity,
-      body.jobCategory,
-      body.jobBookedDate,
-      body.jobStatus,
-      body.deliveryDate,
-      body.jobPrice,
-      body.totalPrice,
-      body.deliveryDetails,
-      body.remark || '',
-    ];
+      const sheets = google.sheets({ version: 'v4', auth });
+      const rowData = [
+        body.jobNumber,
+        body.customerName,
+        body.jobName,
+        body.jobLocation,
+        body.jobSource,
+        body.salesPerson,
+        body.jobSize,
+        body.quantity,
+        body.jobCategory,
+        body.jobBookedDate,
+        body.jobStatus,
+        body.deliveryDate,
+        body.jobPrice,
+        body.totalPrice,
+        body.deliveryDetails,
+        body.remark || '',
+      ];
 
-    console.log('Attempting to append data to sheet:', SPREADSHEET_ID);
+      const response = await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:P`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [rowData],
+        },
+      });
 
-    const response = await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:P`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [rowData],
-      },
-    });
-
-    console.log('Data appended successfully');
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Job entry submitted successfully!',
-      data: response.data 
-    });
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Job entry submitted successfully!',
+        data: response.data 
+      });
+    } catch (googleError) {
+      console.error('Google Sheets API Error:', {
+        name: googleError instanceof Error ? googleError.name : 'Unknown',
+        message: googleError instanceof Error ? googleError.message : 'Unknown error',
+        stack: googleError instanceof Error ? googleError.stack : undefined,
+      });
+      throw googleError;
+    }
   } catch (error) {
     console.error('Detailed error in submit:', {
       name: error instanceof Error ? error.name : 'Unknown',
