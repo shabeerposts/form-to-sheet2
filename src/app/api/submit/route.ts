@@ -61,11 +61,6 @@ export async function POST(request: Request) {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-
-    // Get the current date and time for submission tracking
-    const submissionDate = new Date().toISOString();
-
-    // Prepare the row data in the correct order matching the sheet columns
     const rowData = [
       body.jobNumber,
       body.customerName,
