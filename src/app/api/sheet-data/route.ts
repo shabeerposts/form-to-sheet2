@@ -1,19 +1,8 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-const READ_SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Sheet2';
-
-// Debug function to log environment variables (without sensitive data)
-function logEnvironmentSetup() {
-  console.log('Environment Check:');
-  console.log('SPREADSHEET_ID exists:', !!SPREADSHEET_ID);
-  console.log('GOOGLE_CLIENT_EMAIL exists:', !!process.env.GOOGLE_CLIENT_EMAIL);
-  console.log('GOOGLE_PRIVATE_KEY exists:', !!process.env.GOOGLE_PRIVATE_KEY);
-  console.log('SHEET_NAME:', SHEET_NAME);
-}
 
 // Helper function to format private key
 function getPrivateKey() {
@@ -21,12 +10,18 @@ function getPrivateKey() {
   if (!privateKey) {
     throw new Error('GOOGLE_PRIVATE_KEY is not configured');
   }
-
-  // Remove any quotes and ensure proper line breaks
-  return privateKey
-    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-    .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
-    .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
+  
+  try {
+    // Log the first few characters of the key for debugging (safely)
+    console.log('Private key starts with:', privateKey.substring(0, 20) + '...');
+    
+    return privateKey
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .replace(/\\n/g, '\n');      // Replace \n with actual line breaks
+  } catch (error) {
+    console.error('Error formatting private key:', error);
+    throw error;
+  }
 }
 
 export async function GET() {
