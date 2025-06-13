@@ -13,11 +13,8 @@ function getPrivateKey() {
   }
   
   try {
-    // Remove any quotes and ensure proper line breaks
-    const formattedKey = privateKey
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
-      .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
+    // Only replace \n with actual line breaks, don't convert back
+    const formattedKey = privateKey.replace(/\\n/g, '\n');
     
     // Log the format check (safely)
     console.log('Private key format check:', {
