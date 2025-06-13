@@ -7,54 +7,31 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Sheet2';
 
 // Helper function to format private key
-function formatPrivateKey(key: string | undefined): string | undefined {
-  if (!key) {
-    console.error('Private key is undefined');
-    return undefined;
+function getPrivateKey() {
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error('GOOGLE_PRIVATE_KEY is not configured');
   }
-  try {
-    // Remove any existing quotes and ensure proper line breaks
-    const formattedKey = key
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
-      .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
-    
-    // Validate the key format
-    if (!formattedKey.includes('-----BEGIN PRIVATE KEY-----')) {
-      console.error('Invalid private key format: Missing BEGIN marker');
-      return undefined;
-    }
-    if (!formattedKey.includes('-----END PRIVATE KEY-----')) {
-      console.error('Invalid private key format: Missing END marker');
-      return undefined;
-    }
-    
-    return formattedKey;
-  } catch (error) {
-    console.error('Error formatting private key:', error);
-    return undefined;
-  }
+  
+  // Remove any quotes and ensure proper line breaks
+  return privateKey
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '\n');      // Replace \n with actual line breaks
 }
 
 // Function to check if a job number already exists
 async function checkJobNumberExists(jobNumber: string) {
   try {
-    const privateKey = formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
-    if (!privateKey) {
-      throw new Error('Invalid private key format');
-    }
-
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: privateKey,
+        private_key: getPrivateKey(),
       },
       scopes: READ_SCOPES,
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
     
-    // Get all existing job numbers from the sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:A`,
@@ -72,14 +49,11 @@ async function checkJobNumberExists(jobNumber: string) {
 export async function POST(request: Request) {
   try {
     // Validate environment variables
-    if (!process.env.GOOGLE_SHEET_ID) {
+    if (!SPREADSHEET_ID) {
       throw new Error('GOOGLE_SHEET_ID is not configured');
     }
     if (!process.env.GOOGLE_CLIENT_EMAIL) {
       throw new Error('GOOGLE_CLIENT_EMAIL is not configured');
-    }
-    if (!process.env.GOOGLE_PRIVATE_KEY) {
-      throw new Error('GOOGLE_PRIVATE_KEY is not configured');
     }
 
     const body = await request.json();
@@ -96,15 +70,10 @@ export async function POST(request: Request) {
       );
     }
     
-    const privateKey = formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
-    if (!privateKey) {
-      throw new Error('Invalid private key format');
-    }
-
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: privateKey,
+        private_key: getPrivateKey(),
       },
       scopes: SCOPES,
     });
