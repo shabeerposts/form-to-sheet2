@@ -6,13 +6,22 @@ const READ_SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = 'Sheet2';
 
+function formatPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  // Remove any existing quotes and ensure proper line breaks
+  return key
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '\n')       // Replace \n with actual line breaks
+    .replace(/\n/g, '\\n');      // Convert back to \n for Vercel
+}
+
 // Function to check if a job number already exists
 async function checkJobNumberExists(jobNumber: string) {
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
       },
       scopes: READ_SCOPES,
     });
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
       },
       scopes: SCOPES,
     });

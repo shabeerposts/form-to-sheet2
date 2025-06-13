@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
+function formatPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  return key
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n')
+    .replace(/\n/g, '\\n');
+}
+
 export async function GET() {
   try {
     // Initialize the Google Sheets API
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
       },
       scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
     });
